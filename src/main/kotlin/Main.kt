@@ -1,230 +1,229 @@
-import kotlin.math.pow
-import kotlin.math.sqrt
+open class Matrix {
+    var height: Int
+        protected set
+    var width: Int
+        protected set
+    protected var matrix: Array<Array<Double>>
 
-interface Shape{
-    fun calcArea(): Double
-    fun calcPerimeter(): Double
-}
+    constructor(matrix: Array<Array<Double>>) {
+        this.matrix = Array(matrix.size){Array(matrix[0].size){0.0} }
+        height = matrix.size
+        width = matrix[0].size
+        for(row in 0 until height)
+            for(column in 0 until width)
+                this.matrix[row][column] = matrix[row][column]
+    }
 
-class Circle : Shape{
-    private val radius: Double
+    operator fun get(row: Int, column: Int): Double {
+        return matrix[row][column]
+    }
 
-    override fun calcArea() : Double = Math.PI * radius.pow(2)
-    override fun calcPerimeter(): Double = 2 * Math.PI * radius
+
+    operator fun plus(otherMatrix: Matrix): Matrix = Matrix(addition(otherMatrix))
+
+    operator fun minus(otherMatrix: Matrix): Matrix = Matrix(subtraction(otherMatrix))
+
+    operator fun times(otherMatrix: Matrix): Matrix = Matrix(multiply(otherMatrix))
+
+    open operator fun times(scalar: Double): Matrix = Matrix(multiply(scalar))
+
+    open operator fun div(scalar: Double): Matrix = Matrix(division(scalar))
+
+    operator fun unaryPlus(): Matrix = Matrix(matrix)
+
+    operator fun unaryMinus(): Matrix {
+        val resultMatrix = Array(height) { Array(width) { 0.0 } }
+        for (row in matrix.indices)
+            for (column in matrix[row].indices)
+                resultMatrix[row][column] = -matrix[row][column]
+        return Matrix(resultMatrix)
+    }
+
+    override operator fun equals(other: Any?): Boolean {
+        if(other == null)
+            return false
+        val otherMatrix = other as Matrix
+        if(height != otherMatrix.height || width != otherMatrix.width)
+            return false
+        for(row in 0 until height)
+            for(column in 0 until width)
+                if(matrix[row][column] != otherMatrix.matrix[row][column])
+                    return false
+        return true
+    }
 
     override fun toString(): String {
-        return "Circle\nradius: $radius"
+        var result = ""
+        for(row in 0 until height){
+            for(column in 0 until width){
+                result += matrix[row][column].toString() + " "
+            }
+            result += "\n"
+        }
+        return result
     }
 
-    constructor(radius: Double){
-        if(radius < 0.0)
-            throw Exception()
-        this.radius = radius
-    }
-}
-class Square : Shape{
-    private val side: Double
-
-    override fun calcArea(): Double = side.pow(2)
-    override fun calcPerimeter(): Double = 4 * side
-
-    override fun toString(): String {
-        return "Square\nside: $side"
+    protected fun addition(otherMatrix: Matrix): Array<Array<Double>> {
+        if (height != otherMatrix.height || width != otherMatrix.width)
+            throw Exception("These matrices cannot be added")
+        val resultMatrix = Array(height) { Array(width) { 0.0 } }
+        for (row in matrix.indices)
+            for (column in matrix[row].indices)
+                resultMatrix[row][column] = matrix[row][column] + otherMatrix[row, column]
+        return resultMatrix
     }
 
-    constructor(side: Double){
-        if(side < 0.0)
-            throw Exception()
-        this.side = side
-    }
-}
-class Rectangle : Shape{
-    private val height: Double
-    private val width: Double
-
-    override fun calcArea(): Double = height * width
-    override fun calcPerimeter(): Double = 2 * (height + width)
-
-    override fun toString(): String {
-        return "Rectangle\nheight: $height\nwidth: $width"
+    protected fun subtraction(otherMatrix: Matrix): Array<Array<Double>> {
+        if (height != otherMatrix.height || width != otherMatrix.width)
+            throw Exception("These matrices cannot be subtracted")
+        val resultMatrix = Array(height) { Array(width) { 0.0 } }
+        for (row in matrix.indices)
+            for (column in matrix[row].indices)
+                resultMatrix[row][column] = matrix[row][column] - otherMatrix[row, column]
+        return resultMatrix
     }
 
-    constructor(height: Double, width: Double){
-        if(height < 0.0 || width < 0.0)
-            throw Exception()
-        this.height = height
-        this.width = width
-    }
-}
-class Triangle : Shape{
-    private val side1: Double
-    private val side2: Double
-    private val side3: Double
-
-    override fun calcArea(): Double {
-        val semiPerimeter = calcPerimeter() / 2
-        val differenceNumber1 = semiPerimeter - side1
-        val differenceNumber2 = semiPerimeter - side2
-        val differenceNumber3 = semiPerimeter - side3
-
-        return sqrt(semiPerimeter * differenceNumber1 * differenceNumber2 * differenceNumber3)
+    protected fun division(scalar: Double): Array<Array<Double>> {
+        if (scalar == 0.0)
+            throw Exception("Trying to divide by zero")
+        val resultMatrix = Array(height) { Array(width) { 0.0 } }
+        for (row in matrix.indices)
+            for (column in matrix[row].indices)
+                resultMatrix[row][column] = matrix[row][column] / scalar
+        return resultMatrix
     }
 
-    override fun calcPerimeter(): Double = side1 + side2 + side3
-
-    override fun toString(): String {
-        return "Triangle\nside1: $side1\nside2: $side2\nside3: $side3"
+    protected fun multiply(otherMatrix: Matrix): Array<Array<Double>> {
+        if (width != otherMatrix.height)
+            throw Exception("These matrices cannot be multiplied")
+        val resultMatrix = Array(height) { Array(otherMatrix.width) { 0.0 } }
+        for (row in 0 until height)
+            for (column in 0 until otherMatrix.width)
+                for (k in 0 until width)
+                    resultMatrix[row][column] += matrix[row][k] * otherMatrix.matrix[k][column]
+        return resultMatrix
     }
 
-    constructor(side1: Double, side2: Double, side3: Double){
-        if(side1 < 0.0 || side2 < 0.0 || side3 < 0.0)
-            throw Exception()
-        if(side1 + side2 <= side3 || side1 + side3 <= side2 || side2 + side3 <= side1)
-            throw Exception()
-        this.side1 = side1
-        this.side2 = side2
-        this.side3 = side3
+    protected fun multiply(scalar: Double): Array<Array<Double>> {
+        val resultMatrix = Array(height) { Array(width) { 0.0 } }
+        for (row in matrix.indices)
+            for (column in matrix[row].indices)
+                resultMatrix[row][column] = matrix[row][column] * scalar
+        return resultMatrix
     }
 }
 
-interface ShapeFactory {
-    fun createCircle(radius: Double): Circle
-    fun createSquare(side: Double): Square
-    fun createRectangle(height: Double, width: Double): Rectangle
-    fun createTriangle(side1: Double, side2: Double, side3: Double): Triangle
+class MutableMatrix(matrix: Array<Array<Double>>) : Matrix(matrix) {
 
-    fun createRandomCircle(): Circle
-    fun createRandomSquare(): Square
-    fun createRandomRectangle(): Rectangle
-    fun createRandomTriangle(): Triangle
+    operator fun plus(otherMatrix: MutableMatrix): MutableMatrix = MutableMatrix(addition(otherMatrix))
 
-    fun createRandomShape(): Shape
-}
-
-class ShapeFactorImpl : ShapeFactory {
-    override fun createCircle(radius: Double): Circle = Circle(radius)
-
-    override fun createSquare(side: Double): Square = Square(side)
-
-    override fun createRectangle(height: Double, width: Double): Rectangle = Rectangle(height, width)
-
-    override fun createTriangle(side1: Double, side2: Double, side3: Double): Triangle = Triangle(side1, side2, side3)
-
-    override fun createRandomSquare(): Square {
-        val side = (1..100).random()
-        return Square(side.toDouble())
+    operator fun plusAssign(otherMatrix: MutableMatrix) {
+        matrix = addition(otherMatrix)
     }
 
-    override fun createRandomCircle(): Circle {
-        val radius = (1..100).random()
-        return Circle(radius.toDouble())
+    operator fun minus(otherMatrix: MutableMatrix): MutableMatrix = MutableMatrix(subtraction(otherMatrix))
+
+    operator fun minusAssign(otherMatrix: MutableMatrix) {
+        matrix = subtraction(otherMatrix)
     }
 
-    override fun createRandomRectangle(): Rectangle {
-        val height = (1..100).random()
-        val width = (1..100).random()
-        return Rectangle(height.toDouble(), width.toDouble())
+    operator fun times(otherMatrix: MutableMatrix): MutableMatrix = MutableMatrix(multiply(otherMatrix))
+
+    operator fun timesAssign(otherMatrix: MutableMatrix) {
+        matrix = multiply(otherMatrix)
+        height = matrix.size
+        width = matrix[0].size
     }
 
-    override fun createRandomTriangle(): Triangle {
-        val side1 = (1..100).random()
-        val side2 = (1..100).random()
-        val side3 = side1 + side2 - 1
-        return Triangle(side1.toDouble(), side2.toDouble(), side3.toDouble())
+    override operator fun times(scalar: Double): MutableMatrix = MutableMatrix(multiply(scalar))
+
+    operator fun timesAssign(scalar: Double) {
+        matrix = multiply(scalar)
     }
 
-    override fun createRandomShape(): Shape {
-        val figureNumber = (1..4).random()
-        if(figureNumber == 1)
-            return createRandomCircle()
-        if(figureNumber == 2)
-            return createRandomSquare()
-        if(figureNumber == 3)
-            return createRandomRectangle()
-        return createRandomTriangle()
+    override operator fun div(scalar: Double): MutableMatrix = MutableMatrix(division(scalar))
+
+    operator fun divAssign(scalar: Double) {
+        matrix = division(scalar)
     }
+
+    operator fun set(row: Int, column: Int, value: Double) {
+        matrix[row][column] = value
+    }
+
 }
 
 fun main() {
 
-    val factoryShape = ShapeFactorImpl()
-    val listOfShapes = crateListOfShapes(factoryShape)
-    val shapeMinArea = getShapeWithMinArea(listOfShapes)
-    val shapeMaxArea = getShapeWithMaxArea(listOfShapes)
-    val shapeMinPerimeter = getShapeWithMinPerimeter(listOfShapes)
-    val shapeMaxPerimeter = getShapeWithMaxPerimeter(listOfShapes)
-    val sumArea = getSumAreaOfShapes(listOfShapes)
-    val sumPerimeter = getSumPerimeterOfShapes(listOfShapes)
+    val matrix = Array(2) { Array(3) { 2.0 } }
 
-    printAllShapes(listOfShapes)
+    val mutableMatrix = MutableMatrix(matrix)
 
-    println("Sum area: $sumArea")
-    println("Sum perimeter: $sumPerimeter")
-    println("Shape with max area: $shapeMaxArea")
-    println("Shape with min area: $shapeMinArea")
-    println("Shape with max perimeter: $shapeMaxPerimeter")
-    println("Shape with min perimeter: $shapeMinPerimeter")
+    mutableMatrix[0, 0] = 4.0
+
+    println(mutableMatrix[0, 0])
+
+    println(mutableMatrix.height)
+
+    println(mutableMatrix.width)
+
+    mutableMatrix += mutableMatrix
+
+    println(mutableMatrix) //1
+
+    val sumMatrix = mutableMatrix + mutableMatrix
+
+    println(sumMatrix) //2
+
+    val subtractionMatrix = mutableMatrix - MutableMatrix(matrix)
+
+    println(subtractionMatrix) //3
+
+    mutableMatrix -= MutableMatrix(matrix)
+
+    println(mutableMatrix) //4
+
+    val matrix2 = MutableMatrix(Array(3){Array(2){3.0} })
+
+    val timesMatrix = mutableMatrix * matrix2
+
+    println(timesMatrix) //5
+
+    mutableMatrix *= matrix2
+
+    println(mutableMatrix) //6
+
+    val unaryMinusMatrix = -mutableMatrix
+
+    println(unaryMinusMatrix) //7
+
+    val unaryPlusMatrix = +mutableMatrix
+
+    println(unaryPlusMatrix) //8
+
+    val scalarTimesMatrix = mutableMatrix * 2.0
+
+    println(scalarTimesMatrix) //9
+
+    val scalarDivMatrix = scalarTimesMatrix / 2.0
+
+    println(scalarDivMatrix) //10
+
+    mutableMatrix*=2.0
+
+    println(mutableMatrix) //11
+
+    mutableMatrix/=2.0
+
+    println(mutableMatrix) //12
+
+    println(mutableMatrix == mutableMatrix) //13
+
+    println(mutableMatrix == scalarTimesMatrix) //14
 }
 
-fun crateListOfShapes(factoryShape: ShapeFactory) : ArrayList<Shape> {
-    val listOfShapes = arrayListOf<Shape>()
-    for(i in 1..8){
-        val shape = factoryShape.createRandomShape()
-        listOfShapes.add(shape)
-    }
-    return listOfShapes
-}
 
-fun printAllShapes(listOfShapes: ArrayList<Shape>){
-    for(shape in listOfShapes)
-        println(shape)
-}
 
-fun getSumAreaOfShapes(listOfShapes: ArrayList<Shape>) : Double{
-    var sumArea = 0.0
-    for(shape in listOfShapes)
-        sumArea += shape.calcArea()
-    return sumArea
-}
-
-fun getSumPerimeterOfShapes(listOfShapes: ArrayList<Shape>) : Double{
-    var sumPerimeter = 0.0
-    for(shape in listOfShapes)
-        sumPerimeter += shape.calcPerimeter()
-    return sumPerimeter
-}
-
-fun getShapeWithMinArea(listOfShapes: ArrayList<Shape>) : Shape? {
-    var shapeWithMinArea: Shape? = null
-    for(shape in listOfShapes)
-        if(shapeWithMinArea == null || shapeWithMinArea.calcArea() > shape.calcArea())
-            shapeWithMinArea = shape
-    return shapeWithMinArea
-}
-
-fun getShapeWithMaxArea(listOfShapes: ArrayList<Shape>) : Shape? {
-    var shapeWithMaxArea: Shape? = null
-    for(shape in listOfShapes)
-        if(shapeWithMaxArea == null || shapeWithMaxArea.calcArea() < shape.calcArea())
-            shapeWithMaxArea = shape
-    return shapeWithMaxArea
-}
-
-fun getShapeWithMinPerimeter(listOfShapes: ArrayList<Shape>) : Shape? {
-    var shapeWithMinPerimeter: Shape? = null
-    for(shape in listOfShapes)
-        if(shapeWithMinPerimeter == null || shapeWithMinPerimeter.calcPerimeter() > shape.calcPerimeter())
-            shapeWithMinPerimeter = shape
-    return shapeWithMinPerimeter
-}
-
-fun getShapeWithMaxPerimeter(listOfShapes: ArrayList<Shape>) : Shape? {
-    var shapeWithMaxPerimeter: Shape? = null
-    for(shape in listOfShapes)
-        if(shapeWithMaxPerimeter == null || shapeWithMaxPerimeter.calcPerimeter() < shape.calcPerimeter())
-            shapeWithMaxPerimeter = shape
-    return shapeWithMaxPerimeter
-}
 
 
 
