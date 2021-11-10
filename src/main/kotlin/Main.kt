@@ -1,226 +1,174 @@
-open class Matrix {
-    var height: Int
-        protected set
-    var width: Int
-        protected set
-    protected var matrix: Array<Array<Double>>
+import java.time.Year
 
-    constructor(matrix: Array<Array<Double>>) {
-        this.matrix = Array(matrix.size){Array(matrix[0].size){0.0} }
-        height = matrix.size
-        width = matrix[0].size
-        for(row in 0 until height)
-            for(column in 0 until width)
-                this.matrix[row][column] = matrix[row][column]
-    }
+data class Book(val name: String, val genre: Genre, val year: Year, val authors: List<Author>)
 
-    operator fun get(row: Int, column: Int): Double {
-        return matrix[row][column]
-    }
+data class Author(val firstName: String, val lastName: String)
 
-
-    operator fun plus(otherMatrix: Matrix): Matrix = Matrix(addition(otherMatrix))
-
-    operator fun minus(otherMatrix: Matrix): Matrix = Matrix(subtraction(otherMatrix))
-
-    operator fun times(otherMatrix: Matrix): Matrix = Matrix(multiply(otherMatrix))
-
-    open operator fun times(scalar: Double): Matrix = Matrix(multiply(scalar))
-
-    open operator fun div(scalar: Double): Matrix = Matrix(division(scalar))
-
-    operator fun unaryPlus(): Matrix = Matrix(matrix)
-
-    operator fun unaryMinus(): Matrix {
-        val resultMatrix = Array(height) { Array(width) { 0.0 } }
-        for (row in matrix.indices)
-            for (column in matrix[row].indices)
-                resultMatrix[row][column] = -matrix[row][column]
-        return Matrix(resultMatrix)
-    }
-
-    override operator fun equals(other: Any?): Boolean {
-        if(other == null)
-            return false
-        val otherMatrix = other as Matrix
-        if(height != otherMatrix.height || width != otherMatrix.width)
-            return false
-        for(row in 0 until height)
-            for(column in 0 until width)
-                if(matrix[row][column] != otherMatrix.matrix[row][column])
-                    return false
-        return true
-    }
-
-    override fun toString(): String {
-        var result = ""
-        for(row in 0 until height){
-            for(column in 0 until width){
-                result += matrix[row][column].toString() + " "
-            }
-            result += "\n"
-        }
-        return result
-    }
-
-    protected fun addition(otherMatrix: Matrix): Array<Array<Double>> {
-        if (height != otherMatrix.height || width != otherMatrix.width)
-            throw Exception("These matrices cannot be added")
-        val resultMatrix = Array(height) { Array(width) { 0.0 } }
-        for (row in matrix.indices)
-            for (column in matrix[row].indices)
-                resultMatrix[row][column] = matrix[row][column] + otherMatrix[row, column]
-        return resultMatrix
-    }
-
-    protected fun subtraction(otherMatrix: Matrix): Array<Array<Double>> {
-        if (height != otherMatrix.height || width != otherMatrix.width)
-            throw Exception("These matrices cannot be subtracted")
-        val resultMatrix = Array(height) { Array(width) { 0.0 } }
-        for (row in matrix.indices)
-            for (column in matrix[row].indices)
-                resultMatrix[row][column] = matrix[row][column] - otherMatrix[row, column]
-        return resultMatrix
-    }
-
-    protected fun division(scalar: Double): Array<Array<Double>> {
-        if (scalar == 0.0)
-            throw Exception("Trying to divide by zero")
-        val resultMatrix = Array(height) { Array(width) { 0.0 } }
-        for (row in matrix.indices)
-            for (column in matrix[row].indices)
-                resultMatrix[row][column] = matrix[row][column] / scalar
-        return resultMatrix
-    }
-
-    protected fun multiply(otherMatrix: Matrix): Array<Array<Double>> {
-        if (width != otherMatrix.height)
-            throw Exception("These matrices cannot be multiplied")
-        val resultMatrix = Array(height) { Array(otherMatrix.width) { 0.0 } }
-        for (row in 0 until height)
-            for (column in 0 until otherMatrix.width)
-                for (k in 0 until width)
-                    resultMatrix[row][column] += matrix[row][k] * otherMatrix.matrix[k][column]
-        return resultMatrix
-    }
-
-    protected fun multiply(scalar: Double): Array<Array<Double>> {
-        val resultMatrix = Array(height) { Array(width) { 0.0 } }
-        for (row in matrix.indices)
-            for (column in matrix[row].indices)
-                resultMatrix[row][column] = matrix[row][column] * scalar
-        return resultMatrix
-    }
+data class User(val firstName: String, val lastName: String) {
+    val books: MutableList<Book> = mutableListOf()
 }
 
-class MutableMatrix(matrix: Array<Array<Double>>) : Matrix(matrix) {
+enum class Genre {
+    Fantastic,
+    Philosophy,
+    Novel
+}
 
-    operator fun plus(otherMatrix: MutableMatrix): MutableMatrix = MutableMatrix(addition(otherMatrix))
+sealed class Status {
+    object Available : Status()
+    data class UsedBy(val user: User) : Status()
+    object ComingSoon : Status()
+    object Restoration : Status()
+}
 
-    operator fun plusAssign(otherMatrix: MutableMatrix) {
-        matrix = addition(otherMatrix)
+interface LibraryService {
+
+    fun findBooks(substring: String?, genre: Genre?, year: Year?, author: Author?): List<Book>
+
+    fun getAllBooks(): List<Book>
+    fun getAllAvailableBooks(): List<Book>
+
+    fun getBookStatus(book: Book): Status?
+    fun getAllBookStatuses(): Map<Book, Status>
+
+    fun setBookStatus(book: Book, status: Status)
+
+    fun addBook(book: Book, status: Status = Status.Available)
+
+    fun registerUser(firstName: String, lastName: String)
+    fun unregisterUser(user: User)
+
+    fun takeBook(user: User, book: Book)
+    fun returnBook(book: Book)
+}
+
+class Library : LibraryService {
+
+    private var books: MutableMap<Book, Status> = mutableMapOf()
+    private var users: ArrayList<User> = arrayListOf()
+
+    override fun getAllBooks(): List<Book> = books.keys.toList()
+
+    override fun getAllAvailableBooks(): List<Book> =
+        books.filter { book -> book.value == Status.Available }.map { book -> book.key }
+
+    override fun getBookStatus(book: Book): Status? = books[book]
+
+    override fun getAllBookStatuses(): Map<Book, Status> = books
+
+    override fun setBookStatus(book: Book, status: Status) {
+        if (!existBook(book))
+            addBook(book)
+        books[book] = status
     }
 
-    operator fun minus(otherMatrix: MutableMatrix): MutableMatrix = MutableMatrix(subtraction(otherMatrix))
-
-    operator fun minusAssign(otherMatrix: MutableMatrix) {
-        matrix = subtraction(otherMatrix)
+    override fun addBook(book: Book, status: Status) {
+        books[book] = status
     }
 
-    operator fun times(otherMatrix: MutableMatrix): MutableMatrix = MutableMatrix(multiply(otherMatrix))
-
-    operator fun timesAssign(otherMatrix: MutableMatrix) {
-        matrix = multiply(otherMatrix)
-        height = matrix.size
-        width = matrix[0].size
+    override fun registerUser(firstName: String, lastName: String) {
+        val user = User(firstName, lastName)
+        if (!isUserRegistered(user))
+            users.add(user)
     }
 
-    override operator fun times(scalar: Double): MutableMatrix = MutableMatrix(multiply(scalar))
-
-    operator fun timesAssign(scalar: Double) {
-        matrix = multiply(scalar)
+    override fun unregisterUser(user: User) {
+        if (isUserRegistered(user))
+            users.remove(user)
     }
 
-    override operator fun div(scalar: Double): MutableMatrix = MutableMatrix(division(scalar))
-
-    operator fun divAssign(scalar: Double) {
-        matrix = division(scalar)
+    override fun takeBook(user: User, book: Book) {
+        if (isUserRegistered(user) && user.books.size < 3 && existBook(book) && books[book] == Status.Available) {
+            books[book] = Status.UsedBy(user)
+            user.books.add(book)
+        }
     }
 
-    operator fun set(row: Int, column: Int, value: Double) {
-        matrix[row][column] = value
+    override fun returnBook(book: Book) {
+        val user = users.find { user -> user.books.contains(book) } ?: return
+        books[book] = Status.Available
+        user.books.remove(book)
     }
 
+    override fun findBooks(substring: String?, genre: Genre?, year: Year?, author: Author?): List<Book> {
+        var books = setOf<Book>()
+        if (substring != null)
+            books = books.union(findBooks(substring))
+        if (genre != null)
+            books = books.union(findBooks(genre))
+        if (year != null)
+            books = books.union(findBooks(year))
+        if (author != null)
+            books = books.union(findBooks(author))
+        return books.toList()
+    }
+
+    private fun findBooks(substring: String): List<Book> =
+        books.filter { book -> book.key.name == substring }.map { book -> book.key }
+
+    private fun findBooks(author: Author): List<Book> =
+        books.filter { book -> book.key.authors.contains(author) }.map { book -> book.key }
+
+    private fun findBooks(year: Year): List<Book> =
+        books.filter { book -> book.key.year == year }.map { book -> book.key }
+
+    private fun findBooks(genre: Genre): List<Book> =
+        books.filter { book -> book.key.genre == genre }.map { book -> book.key }
+
+    private fun isUserRegistered(user: User): Boolean = users.contains(user)
+
+    private fun existBook(book: Book): Boolean = books.contains(book)
 }
 
 fun main() {
+    val library: LibraryService = Library()
 
-    val matrix = Array(2) { Array(3) { 2.0 } }
+    val books = listOf(
+        Book("Рассуждение о методе", Genre.Philosophy, Year.now(), listOf(Author("Рене", "Декард"))),
+        Book("Охота на овец", Genre.Fantastic, Year.now(), listOf(Author("Харуки", "Мураками"))),
+        Book("12 стульев", Genre.Novel, Year.now(), listOf(Author("Ильф", ""), Author("Петров", ""))),
+        Book("Алхимик", Genre.Philosophy, Year.now(), listOf(Author("Пауло", "Коэльо")))
+    )
 
-    val mutableMatrix = MutableMatrix(matrix)
+    val users = listOf(User("Саша", ",Белый"), User("Космос", ""), User("Пчёла", ""), User("Фил", ""))
 
-    mutableMatrix[0, 0] = 4.0
+    library.setBookStatus(books[0], Status.ComingSoon)
 
-    println(mutableMatrix[0, 0])
+    library.registerUser(users[0].firstName, users[0].lastName)
 
-    println(mutableMatrix.height)
+    library.takeBook(users[0], books[0])
 
-    println(mutableMatrix.width)
+    println(library.getBookStatus(books[0])) //1
 
-    mutableMatrix += mutableMatrix
+    library.addBook(books[0])
+    library.addBook(books[1])
+    library.addBook(books[2])
+    library.addBook(books[3])
 
-    println(mutableMatrix) //1
+    library.takeBook(users[0], books[0])
 
-    val sumMatrix = mutableMatrix + mutableMatrix
+    println(library.getBookStatus(books[0])) //2
 
-    println(sumMatrix) //2
+    library.takeBook(users[0], books[1])
+    library.takeBook(users[0], books[2])
+    library.takeBook(users[0], books[3])
 
-    val subtractionMatrix = mutableMatrix - MutableMatrix(matrix)
+    println(library.getBookStatus(books[2])) //3
 
-    println(subtractionMatrix) //3
+    println(library.getBookStatus(books[3])) //4
 
-    mutableMatrix -= MutableMatrix(matrix)
+    library.takeBook(users[1], books[3])
 
-    println(mutableMatrix) //4
+    println(library.getBookStatus(books[3])) //5
 
-    val matrix2 = MutableMatrix(Array(3){Array(2){3.0} })
+    library.registerUser(users[1].firstName, users[1].lastName)
 
-    val timesMatrix = mutableMatrix * matrix2
+    library.takeBook(users[1], books[3])
 
-    println(timesMatrix) //5
-
-    mutableMatrix *= matrix2
-
-    println(mutableMatrix) //6
-
-    val unaryMinusMatrix = -mutableMatrix
-
-    println(unaryMinusMatrix) //7
-
-    val unaryPlusMatrix = +mutableMatrix
-
-    println(unaryPlusMatrix) //8
-
-    val scalarTimesMatrix = mutableMatrix * 2.0
-
-    println(scalarTimesMatrix) //9
-
-    val scalarDivMatrix = scalarTimesMatrix / 2.0
-
-    println(scalarDivMatrix) //10
-
-    mutableMatrix*=2.0
-
-    println(mutableMatrix) //11
-
-    mutableMatrix/=2.0
-
-    println(mutableMatrix) //12
-
-    println(mutableMatrix == mutableMatrix) //13
-
-    println(mutableMatrix == scalarTimesMatrix) //14
+    println(library.getBookStatus(books[3])) //6
 }
+
+
 
 
 
